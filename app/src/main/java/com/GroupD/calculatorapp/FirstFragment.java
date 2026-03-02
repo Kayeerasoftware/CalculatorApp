@@ -15,9 +15,10 @@ import java.text.DecimalFormat;
 public class FirstFragment extends Fragment {
 
     private FragmentFirstBinding binding;
-    private String currentInput = "";
-    private String operator = "";
-    private double firstValue = Double.NaN;
+    private String formula = "";
+    private String currentNumber = "";
+    private double result = 0;
+    private String lastOperator = "";
     private boolean isNewOp = true;
     private final DecimalFormat decimalFormat = new DecimalFormat("#.##########");
 
@@ -57,106 +58,135 @@ public class FirstFragment extends Fragment {
         // Special buttons
         binding.buttonClear.setOnClickListener(v -> clear());
         binding.buttonBackspace.setOnClickListener(v -> backspace());
-        binding.buttonEquals.setOnClickListener(v -> calculate());
+        binding.buttonEquals.setOnClickListener(v -> showFinalResult());
     }
 
     private void appendNumber(String number) {
-        if (isNewOp) {
-            currentInput = "";
+        if (isNewOp && !number.equals(".")) {
+            currentNumber = number;
             isNewOp = false;
-        }
-        
-        if (number.equals(".") && currentInput.contains(".")) {
+        } else if (number.equals(".") && currentNumber.contains(".")) {
             return;
-        }
-        
-        if (currentInput.equals("0") && !number.equals(".")) {
-            currentInput = number;
         } else {
-            currentInput += number;
+            currentNumber += number;
         }
         
-        binding.textViewDisplay.setText(currentInput);
+        updateFormulaDisplay();
+        calculateLive();
     }
 
     private void setOperator(String op) {
-        if (!currentInput.isEmpty()) {
-            if (!Double.isNaN(firstValue)) {
-                calculate();
+        if (!currentNumber.isEmpty() || !formula.isEmpty()) {
+            if (currentNumber.isEmpty() && !formula.isEmpty()) {
+                // Change the last operator if no number was entered
+                formula = formula.substring(0, formula.length() - 3) + " " + op + " ";
+            } else {
+                formula += currentNumber + " " + op + " ";
+                currentNumber = "";
             }
-            try {
-                firstValue = Double.parseDouble(currentInput);
-                operator = op;
-                isNewOp = true;
-            } catch (NumberFormatException e) {
-                clear();
-            }
+            lastOperator = op;
+            isNewOp = true;
+            updateFormulaDisplay();
         }
     }
 
     private void applyPercent() {
-        if (!currentInput.isEmpty()) {
+        if (!currentNumber.isEmpty()) {
             try {
-                double value = Double.parseDouble(currentInput) / 100;
-                currentInput = decimalFormat.format(value);
-                binding.textViewDisplay.setText(currentInput);
-            } catch (NumberFormatException e) {
-                clear();
-            }
+                double value = Double.parseDouble(currentNumber) / 100;
+                currentNumber = decimalFormat.format(value);
+                updateFormulaDisplay();
+                calculateLive();
+            } catch (NumberFormatException ignored) {}
         }
     }
 
     private void backspace() {
-        if (currentInput.length() > 0) {
-            currentInput = currentInput.substring(0, currentInput.length() - 1);
-            if (currentInput.isEmpty()) {
-                currentInput = "0";
-                isNewOp = true;
-            }
-            binding.textViewDisplay.setText(currentInput);
+        if (!currentNumber.isEmpty()) {
+            currentNumber = currentNumber.substring(0, currentNumber.length() - 1);
+        } else if (formula.length() > 3) {
+            // Remove operator and trailing space
+            formula = formula.substring(0, formula.length() - 3);
+            // Try to pull back the last number from formula? 
+            // Simple implementation: just clear and let user re-type
         }
+        updateFormulaDisplay();
+        calculateLive();
     }
 
     private void clear() {
-        currentInput = "0";
-        firstValue = Double.NaN;
-        operator = "";
+        formula = "";
+        currentNumber = "0";
+        result = 0;
+        lastOperator = "";
         isNewOp = true;
-        binding.textViewDisplay.setText(currentInput);
+        binding.textViewFormula.setText("0");
+        binding.textViewResult.setText("");
     }
 
-    private void calculate() {
-        if (!Double.isNaN(firstValue) && !currentInput.isEmpty()) {
+    private void updateFormulaDisplay() {
+        String fullDisplay = formula + currentNumber;
+        if (fullDisplay.isEmpty()) fullDisplay = "0";
+        binding.textViewFormula.setText(fullDisplay);
+    }
+
+    private void calculateLive() {
+        if (formula.isEmpty()) {
+            binding.textViewResult.setText("");
+            return;
+        }
+
+        try {
+            // Very simple expression evaluator for live result
+            String expression = formula + currentNumber;
+            double liveResult = evaluateSimpleExpression(expression);
+            binding.textViewResult.setText(decimalFormat.format(liveResult));
+        } catch (Exception e) {
+            binding.textViewResult.setText("");
+        }
+    }
+
+    private void showFinalResult() {
+        if (!formula.isEmpty() || !currentNumber.isEmpty()) {
             try {
-                double secondValue = Double.parseDouble(currentInput);
-                double result = 0;
-
-                switch (operator) {
-                    case "+": result = firstValue + secondValue; break;
-                    case "−": result = firstValue - secondValue; break;
-                    case "×": result = firstValue * secondValue; break;
-                    case "÷": 
-                        if (secondValue != 0) {
-                            result = firstValue / secondValue;
-                        } else {
-                            binding.textViewDisplay.setText("Error");
-                            currentInput = "0";
-                            firstValue = Double.NaN;
-                            isNewOp = true;
-                            return;
-                        }
-                        break;
-                }
-
-                currentInput = decimalFormat.format(result);
-                binding.textViewDisplay.setText(currentInput);
-                firstValue = Double.NaN;
-                operator = "";
+                String expression = formula + currentNumber;
+                double finalResult = evaluateSimpleExpression(expression);
+                currentNumber = decimalFormat.format(finalResult);
+                formula = "";
                 isNewOp = true;
-            } catch (NumberFormatException e) {
-                clear();
+                binding.textViewFormula.setText(currentNumber);
+                binding.textViewResult.setText("");
+            } catch (Exception e) {
+                binding.textViewFormula.setText("Error");
+                binding.textViewResult.setText("");
             }
         }
+    }
+
+    private double evaluateSimpleExpression(String expr) {
+        // This is a basic sequential evaluator (doesn't strictly follow BODMAS, just left-to-right)
+        // for more complex logic, a library like exp4j could be used.
+        String[] parts = expr.trim().split("\\s+");
+        if (parts.length == 0) return 0;
+        
+        double res = Double.parseDouble(parts[0].replace("−", "-"));
+        
+        for (int i = 1; i < parts.length; i += 2) {
+            if (i + 1 >= parts.length) break;
+            String op = parts[i];
+            double nextVal = Double.parseDouble(parts[i+1].replace("−", "-"));
+            
+            switch (op) {
+                case "+": res += nextVal; break;
+                case "−": res -= nextVal; break;
+                case "×": res *= nextVal; break;
+                case "÷": 
+                    if (nextVal != 0) res /= nextVal;
+                    else return Double.NaN;
+                    break;
+            }
+        }
+        return res;
     }
 
     @Override

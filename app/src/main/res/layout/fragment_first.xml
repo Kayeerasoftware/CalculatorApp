@@ -8,26 +8,44 @@
     android:padding="8dp"
     tools:context=".FirstFragment">
 
-    <TextView
-        android:id="@+id/textView_display"
+    <LinearLayout
+        android:id="@+id/display_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@color/bg_display"
-        android:gravity="bottom|end"
+        android:orientation="vertical"
         android:padding="16dp"
-        android:text="0"
-        android:textColor="@color/text_light"
-        android:textSize="80sp"
-        android:maxLines="1"
-        android:ellipsize="start"
-        app:autoSizeTextType="uniform"
-        app:autoSizeMinTextSize="40sp"
-        app:autoSizeMaxTextSize="80sp"
-        android:fontFamily="sans-serif-thin"
+        android:gravity="bottom"
         app:layout_constraintBottom_toTopOf="@+id/guideline_horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/textView_result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:text=""
+            android:textColor="@color/color_special"
+            android:textSize="24sp"
+            android:fontFamily="sans-serif-light"
+            android:maxLines="1" />
+
+        <TextView
+            android:id="@+id/textView_formula"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:text="0"
+            android:textColor="@color/text_light"
+            android:textSize="64sp"
+            android:maxLines="1"
+            app:autoSizeTextType="uniform"
+            app:autoSizeMinTextSize="32sp"
+            app:autoSizeMaxTextSize="64sp"
+            android:fontFamily="sans-serif-thin" />
+    </LinearLayout>
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline_horizontal"
